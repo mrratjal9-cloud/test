@@ -1,0 +1,559 @@
+-- ==========================================
+-- CONFIGURATION SETTINGS
+-- Ubah angka/status di sini untuk Custom Config
+-- ==========================================
+local CustomConfig = {
+	ESP_Enabled = true,
+	Low_Graphics = true,
+	Fullbright = true,
+	Noclip = false,
+	Fly = false,
+	Fly_Speed = 100,
+	Walk_Speed = 32,
+	Jump_Power = 100
+}
+
+local DefaultConfig = {
+	ESP_Enabled = false,
+	Low_Graphics = false,
+	Fullbright = false,
+	Noclip = false,
+	Fly = false,
+	Fly_Speed = 50,
+	Walk_Speed = 16,
+	Jump_Power = 50
+}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Lighting = game:GetService("Lighting")
+
+local Lr = Players.LocalPlayer
+local guiName = "BasicScriptGUI"
+
+-- ==========================================
+-- SINGLE EXECUTION SECURITY (ANTI-DUPLIKAT)
+-- ==========================================
+local targetParent = pcall(function() return CoreGui end) and CoreGui or Lr:WaitForChild("PlayerGui")
+if targetParent:FindFirstChild(guiName) then
+	targetParent[guiName]:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = guiName
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = targetParent
+
+-- ==========================================
+-- STARTUP MENU (PILIH CONFIG)
+-- ==========================================
+local StartupFrame = Instance.new("Frame")
+StartupFrame.Name = "StartupFrame"
+StartupFrame.Parent = ScreenGui
+StartupFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+StartupFrame.Position = UDim2.new(0.5, -125, 0.5, -75)
+StartupFrame.Size = UDim2.new(0, 250, 0, 150)
+StartupFrame.Active = true
+StartupFrame.Draggable = true
+
+local StartupTitle = Instance.new("TextLabel")
+StartupTitle.Parent = StartupFrame
+StartupTitle.BackgroundTransparency = 1
+StartupTitle.Size = UDim2.new(1, 0, 0, 40)
+StartupTitle.Font = Enum.Font.GothamBold
+StartupTitle.Text = "Select Configuration"
+StartupTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+StartupTitle.TextSize = 16
+
+local DefaultBtn = Instance.new("TextButton")
+DefaultBtn.Parent = StartupFrame
+DefaultBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 105)
+DefaultBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
+DefaultBtn.Size = UDim2.new(0.8, 0, 0, 30)
+DefaultBtn.Font = Enum.Font.GothamBold
+DefaultBtn.Text = "Load Default Config"
+DefaultBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DefaultBtn.TextSize = 14
+
+local CustomBtn = Instance.new("TextButton")
+CustomBtn.Parent = StartupFrame
+CustomBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+CustomBtn.Position = UDim2.new(0.1, 0, 0.7, 0)
+CustomBtn.Size = UDim2.new(0.8, 0, 0, 30)
+CustomBtn.Font = Enum.Font.GothamBold
+CustomBtn.Text = "Load Custom Config"
+CustomBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CustomBtn.TextSize = 14
+
+-- ==========================================
+-- BUILD MAIN GUI
+-- ==========================================
+local function BuildMainGUI(Config)
+	local MainFrame = Instance.new("Frame")
+	MainFrame.Name = "MainFrame"
+	MainFrame.Parent = ScreenGui
+	MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	MainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+	MainFrame.Size = UDim2.new(0, 300, 0, 400)
+	MainFrame.Active = true
+	MainFrame.Draggable = true
+
+	local TopBar = Instance.new("Frame")
+	TopBar.Name = "TopBar"
+	TopBar.Parent = MainFrame
+	TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	TopBar.Size = UDim2.new(1, 0, 0, 30)
+
+	local Title = Instance.new("TextLabel")
+	Title.Parent = TopBar
+	Title.BackgroundTransparency = 1
+	Title.Position = UDim2.new(0, 10, 0, 0)
+	Title.Size = UDim2.new(0, 150, 1, 0)
+	Title.Font = Enum.Font.GothamBold
+	Title.Text = "Basic Script GUI"
+	Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Title.TextSize = 14
+	Title.TextXAlignment = Enum.TextXAlignment.Left
+
+	local MinBtn = Instance.new("TextButton")
+	MinBtn.Parent = TopBar
+	MinBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+	MinBtn.Position = UDim2.new(1, -60, 0, 0)
+	MinBtn.Size = UDim2.new(0, 30, 1, 0)
+	MinBtn.Font = Enum.Font.GothamBold
+	MinBtn.Text = "-"
+	MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	MinBtn.TextSize = 18
+
+	local CloseBtn = Instance.new("TextButton")
+	CloseBtn.Parent = TopBar
+	CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	CloseBtn.Position = UDim2.new(1, -30, 0, 0)
+	CloseBtn.Size = UDim2.new(0, 30, 1, 0)
+	CloseBtn.Font = Enum.Font.GothamBold
+	CloseBtn.Text = "X"
+	CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	CloseBtn.TextSize = 14
+
+	local Content = Instance.new("ScrollingFrame")
+	Content.Parent = MainFrame
+	Content.BackgroundTransparency = 1
+	Content.Position = UDim2.new(0, 0, 0, 35)
+	Content.Size = UDim2.new(1, 0, 1, -35)
+	Content.ScrollBarThickness = 4
+
+	local UIListLayout = Instance.new("UIListLayout")
+	UIListLayout.Parent = Content
+	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	UIListLayout.Padding = UDim.new(0, 5)
+
+	UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		Content.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+	end)
+
+	local function createToggle(name, defaultState, callback)
+		local Frame = Instance.new("Frame")
+		Frame.Parent = Content
+		Frame.BackgroundTransparency = 1
+		Frame.Size = UDim2.new(1, 0, 0, 30)
+
+		local Label = Instance.new("TextLabel")
+		Label.Parent = Frame
+		Label.BackgroundTransparency = 1
+		Label.Position = UDim2.new(0, 10, 0, 0)
+		Label.Size = UDim2.new(0, 200, 1, 0)
+		Label.Font = Enum.Font.Gotham
+		Label.Text = name
+		Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+		Label.TextSize = 14
+		Label.TextXAlignment = Enum.TextXAlignment.Left
+
+		local Btn = Instance.new("TextButton")
+		Btn.Parent = Frame
+		Btn.BackgroundColor3 = defaultState and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+		Btn.Position = UDim2.new(1, -60, 0, 5)
+		Btn.Size = UDim2.new(0, 50, 0, 20)
+		Btn.Font = Enum.Font.GothamBold
+		Btn.Text = defaultState and "ON" or "OFF"
+		Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		Btn.TextSize = 12
+
+		local state = defaultState
+		Btn.MouseButton1Click:Connect(function()
+			state = not state
+			Btn.Text = state and "ON" or "OFF"
+			Btn.BackgroundColor3 = state and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+			callback(state)
+		end)
+		
+		-- Eksekusi saat inisialisasi agar sesuai dengan config
+		if state then callback(state) end
+	end
+
+	local function createSlider(name, min, max, defaultVal, callback)
+		local Frame = Instance.new("Frame")
+		Frame.Parent = Content
+		Frame.BackgroundTransparency = 1
+		Frame.Size = UDim2.new(1, 0, 0, 45)
+
+		local Label = Instance.new("TextLabel")
+		Label.Parent = Frame
+		Label.BackgroundTransparency = 1
+		Label.Position = UDim2.new(0, 10, 0, 0)
+		Label.Size = UDim2.new(0, 200, 0, 20)
+		Label.Font = Enum.Font.Gotham
+		Label.Text = name .. " : " .. defaultVal
+		Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+		Label.TextSize = 14
+		Label.TextXAlignment = Enum.TextXAlignment.Left
+
+		local SliderBG = Instance.new("TextButton")
+		SliderBG.Parent = Frame
+		SliderBG.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+		SliderBG.Position = UDim2.new(0, 10, 0, 25)
+		SliderBG.Size = UDim2.new(1, -30, 0, 10)
+		SliderBG.Text = ""
+
+		local SliderFill = Instance.new("Frame")
+		SliderFill.Parent = SliderBG
+		SliderFill.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+		SliderFill.Size = UDim2.new((defaultVal - min) / (max - min), 0, 1, 0)
+
+		local dragging = false
+		SliderBG.MouseButton1Down:Connect(function() dragging = true end)
+		UserInputService.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+		end)
+
+		UserInputService.InputChanged:Connect(function(input)
+			if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+				local mousePos = UserInputService:GetMouseLocation().X
+				local relPos = mousePos - SliderBG.AbsolutePosition.X
+				local percent = math.clamp(relPos / SliderBG.AbsoluteSize.X, 0, 1)
+				SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+				local value = math.floor(min + (max - min) * percent)
+				Label.Text = name .. " : " .. value
+				callback(value)
+			end
+		end)
+		
+		-- Eksekusi saat inisialisasi agar sesuai dengan config
+		callback(defaultVal)
+	end
+
+	-- ==================== Fitur GUI ====================
+	local minimized = false
+	MinBtn.MouseButton1Click:Connect(function()
+		minimized = not minimized
+		Content.Visible = not minimized
+		MainFrame.Size = minimized and UDim2.new(0, 300, 0, 30) or UDim2.new(0, 300, 0, 400)
+		MinBtn.Text = minimized and "+" or "-"
+	end)
+
+	CloseBtn.MouseButton1Click:Connect(function()
+		ScreenGui:Destroy()
+	end)
+
+	local TPContainer = Instance.new("Frame")
+	TPContainer.Parent = Content
+	TPContainer.BackgroundTransparency = 1
+	TPContainer.Size = UDim2.new(1, 0, 0, 35)
+
+	local TPInput = Instance.new("TextBox")
+	TPInput.Parent = TPContainer
+	TPInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+	TPInput.Position = UDim2.new(0, 10, 0, 5)
+	TPInput.Size = UDim2.new(0, 130, 0, 25)
+	TPInput.Font = Enum.Font.Gotham
+	TPInput.PlaceholderText = "Username..."
+	TPInput.Text = ""
+	TPInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TPInput.TextSize = 13
+
+	local DropdownBtn = Instance.new("TextButton")
+	DropdownBtn.Parent = TPContainer
+	DropdownBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+	DropdownBtn.Position = UDim2.new(0, 145, 0, 5)
+	DropdownBtn.Size = UDim2.new(0, 25, 0, 25)
+	DropdownBtn.Font = Enum.Font.GothamBold
+	DropdownBtn.Text = "v"
+	DropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	DropdownBtn.TextSize = 14
+
+	local TPBtn = Instance.new("TextButton")
+	TPBtn.Parent = TPContainer
+	TPBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+	TPBtn.Position = UDim2.new(0, 175, 0, 5)
+	TPBtn.Size = UDim2.new(0, 65, 0, 25)
+	TPBtn.Font = Enum.Font.GothamBold
+	TPBtn.Text = "Teleport"
+	TPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TPBtn.TextSize = 13
+
+	local DropdownList = Instance.new("ScrollingFrame")
+	DropdownList.Parent = Content
+	DropdownList.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+	DropdownList.Position = UDim2.new(0, 10, 0, 0)
+	DropdownList.Size = UDim2.new(0, 230, 0, 100)
+	DropdownList.ScrollBarThickness = 3
+	DropdownList.Visible = false
+
+	local DropdownLayout = Instance.new("UIListLayout")
+	DropdownLayout.Parent = DropdownList
+	DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+	DropdownLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		DropdownList.CanvasSize = UDim2.new(0, 0, 0, DropdownLayout.AbsoluteContentSize.Y)
+	end)
+
+	DropdownBtn.MouseButton1Click:Connect(function()
+		DropdownList.Visible = not DropdownList.Visible
+		DropdownBtn.Text = DropdownList.Visible and "^" or "v"
+		
+		if DropdownList.Visible then
+			for _, child in pairs(DropdownList:GetChildren()) do
+				if child:IsA("TextButton") then child:Destroy() end
+			end
+			for _, p in pairs(Players:GetPlayers()) do
+				if p ~= Lr then
+					local pBtn = Instance.new("TextButton")
+					pBtn.Parent = DropdownList
+					pBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+					pBtn.Size = UDim2.new(1, 0, 0, 25)
+					pBtn.Font = Enum.Font.Gotham
+					pBtn.Text = "  " .. p.Name
+					pBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+					pBtn.TextSize = 13
+					pBtn.TextXAlignment = Enum.TextXAlignment.Left
+					
+					pBtn.MouseButton1Click:Connect(function()
+						TPInput.Text = p.Name
+						DropdownList.Visible = false
+						DropdownBtn.Text = "v"
+					end)
+				end
+			end
+		end
+	end)
+
+	TPBtn.MouseButton1Click:Connect(function()
+		local targetStr = string.lower(TPInput.Text)
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= Lr and string.find(string.lower(p.Name), targetStr) then
+				if Lr.Character and Lr.Character:FindFirstChild("HumanoidRootPart") and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+					Lr.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame
+					break
+				end
+			end
+		end
+	end)
+
+	local espEnabled = Config.ESP_Enabled
+	local function updateESP()
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= Lr and p.Character then
+				local hl = p.Character:FindFirstChild("BasicESP")
+				local bgui = p.Character:FindFirstChild("BasicESP_Name")
+				
+				if espEnabled then
+					if not hl then
+						hl = Instance.new("Highlight")
+						hl.Name = "BasicESP"
+						hl.FillColor = Color3.new(1, 0, 0)
+						hl.FillTransparency = 0.5
+						hl.OutlineColor = Color3.new(1, 1, 1)
+						hl.Parent = p.Character
+					end
+					if not bgui and p.Character:FindFirstChild("Head") then
+						bgui = Instance.new("BillboardGui")
+						bgui.Name = "BasicESP_Name"
+						bgui.Adornee = p.Character.Head
+						bgui.Size = UDim2.new(0, 150, 0, 40)
+						bgui.StudsOffset = Vector3.new(0, 2.5, 0)
+						bgui.AlwaysOnTop = true
+						
+						local txt = Instance.new("TextLabel")
+						txt.Parent = bgui
+						txt.BackgroundTransparency = 1
+						txt.Size = UDim2.new(1, 0, 1, 0)
+						txt.Text = p.Name
+						txt.TextColor3 = Color3.new(1, 1, 1)
+						txt.TextStrokeTransparency = 0.2
+						txt.Font = Enum.Font.GothamBold
+						txt.TextSize = 14
+						
+						bgui.Parent = p.Character
+					end
+				else
+					if hl then hl:Destroy() end
+					if bgui then bgui:Destroy() end
+				end
+			end
+		end
+	end
+
+	Players.PlayerAdded:Connect(function(p)
+		p.CharacterAdded:Connect(function()
+			task.wait(1)
+			updateESP()
+		end)
+	end)
+
+	createToggle("ESP Players & Name", Config.ESP_Enabled, function(state)
+		espEnabled = state
+		updateESP()
+	end)
+
+	createToggle("Low Graphics", Config.Low_Graphics, function(state)
+		if state then
+			pcall(function()
+				sethiddenproperty(Lighting, "Technology", 2)
+				sethiddenproperty(workspace.Terrain, "Decoration", false)
+			end)
+			workspace.Terrain.WaterWaveSize = 0
+			workspace.Terrain.WaterWaveSpeed = 0
+			workspace.Terrain.WaterReflectance = 0
+			workspace.Terrain.WaterTransparency = 1
+
+			for _, v in ipairs(workspace:GetDescendants()) do
+				pcall(function()
+					if v:IsA("BasePart") then
+						v.Material = Enum.Material.SmoothPlastic
+						v.Reflectance = 0
+						if v.MaterialVariant ~= "" then v.MaterialVariant = "" end
+					elseif v:IsA("MeshPart") then v.TextureID = ""
+					elseif v:IsA("SpecialMesh") then v.TextureId = ""
+					elseif v:IsA("Decal") or v:IsA("Texture") then v.Transparency = 1
+					elseif v:IsA("SurfaceAppearance") then v:Destroy()
+					elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Lifetime = NumberRange.new(0)
+					elseif v:IsA("Explosion") then v.BlastPressure = 1; v.BlastRadius = 1
+					elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("PointLight") or v:IsA("SurfaceLight") then
+						v.Enabled = false
+					end
+				end)
+			end
+
+			for _, e in ipairs(Lighting:GetChildren()) do
+				pcall(function()
+					if e:IsA("PostEffect") or e:IsA("Atmosphere") or e:IsA("Sky") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") then
+						if e:IsA("Sky") or e:IsA("Atmosphere") then e:Destroy() 
+						else e.Enabled = false end
+					end
+				end)
+			end
+		end
+	end)
+
+	local fbLoop
+	createToggle("Fullbright", Config.Fullbright, function(state)
+		if state then
+			fbLoop = RunService.RenderStepped:Connect(function()
+				Lighting.GlobalShadows = false
+				Lighting.FogEnd = 9e9
+				Lighting.FogStart = 0
+				Lighting.ClockTime = 14
+				Lighting.Brightness = 3
+				Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+				Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+			end)
+		else
+			if fbLoop then fbLoop:Disconnect() end
+		end
+	end)
+
+	local noclip = Config.Noclip
+	createToggle("Noclip", Config.Noclip, function(state)
+		noclip = state
+	end)
+
+	RunService.Stepped:Connect(function()
+		if noclip and Lr.Character then
+			for _, v in pairs(Lr.Character:GetDescendants()) do
+				if v:IsA("BasePart") and v.CanCollide then
+					v.CanCollide = false
+				end
+			end
+		end
+	end)
+
+	local flying = Config.Fly
+	local flySpeed = Config.Fly_Speed
+	local bg, bv
+
+	createToggle("Fly", Config.Fly, function(state)
+		flying = state
+		local char = Lr.Character
+		if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+		local hrp = char.HumanoidRootPart
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		
+		if flying then
+			local camera = workspace.CurrentCamera
+			bg = Instance.new("BodyGyro", hrp)
+			bg.P = 9e4
+			bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+			bg.cframe = hrp.CFrame
+			
+			bv = Instance.new("BodyVelocity", hrp)
+			bv.velocity = Vector3.new(0, 0, 0)
+			bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+			
+			if humanoid then humanoid.PlatformStand = true end
+			
+			task.spawn(function()
+				while flying and char and char:FindFirstChild("HumanoidRootPart") do
+					local ctrl = {f = 0, b = 0, l = 0, r = 0}
+					if UserInputService:IsKeyDown(Enum.KeyCode.W) then ctrl.f = 1 end
+					if UserInputService:IsKeyDown(Enum.KeyCode.S) then ctrl.b = -1 end
+					if UserInputService:IsKeyDown(Enum.KeyCode.A) then ctrl.l = -1 end
+					if UserInputService:IsKeyDown(Enum.KeyCode.D) then ctrl.r = 1 end
+					
+					local camCF = camera.CFrame
+					bv.Velocity = ((camCF.LookVector * (ctrl.f + ctrl.b)) + (camCF.RightVector * (ctrl.l + ctrl.r))) * flySpeed
+					bg.CFrame = camCF
+					task.wait()
+				end
+				if bg then bg:Destroy() end
+				if bv then bv:Destroy() end
+				if humanoid then humanoid.PlatformStand = false end
+			end)
+		else
+			if bg then bg:Destroy() end
+			if bv then bv:Destroy() end
+			if humanoid then humanoid.PlatformStand = false end
+		end
+	end)
+
+	createSlider("Fly Speed", 10, 500, Config.Fly_Speed, function(val)
+		flySpeed = val
+	end)
+
+	createSlider("Walk Speed", 16, 300, Config.Walk_Speed, function(val)
+		if Lr.Character and Lr.Character:FindFirstChildOfClass("Humanoid") then
+			Lr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = val
+		end
+	end)
+
+	createSlider("Jump Power", 50, 500, Config.Jump_Power, function(val)
+		if Lr.Character and Lr.Character:FindFirstChildOfClass("Humanoid") then
+			local hum = Lr.Character:FindFirstChildOfClass("Humanoid")
+			hum.UseJumpPower = true 
+			hum.JumpPower = val
+		end
+	end)
+end
+
+-- ==========================================
+-- BUTTON CLICKS
+-- ==========================================
+DefaultBtn.MouseButton1Click:Connect(function()
+	StartupFrame:Destroy()
+	BuildMainGUI(DefaultConfig)
+end)
+
+CustomBtn.MouseButton1Click:Connect(function()
+	StartupFrame:Destroy()
+	BuildMainGUI(CustomConfig)
+end)
