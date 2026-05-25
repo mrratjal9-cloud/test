@@ -4,14 +4,14 @@
 -- ==========================================
 local CustomConfig = {
 	ESP_Enabled = true,
-	Low_Graphics = true,
-	Fullbright = true,
-	Noclip = false,
-	Fly = false,
-	Fly_Speed = 100,
+	Low_Graphics = false,
+	Fullbright = false,
+	Noclip = true,
+	Fly = true,
+	Fly_Speed = 50,
 	Walk_Speed = 32,
 	Jump_Power = 100,
-	Basic_Animation = false,
+	Basic_Animation = true,
 	Mouse_Unlock = true,
 	Mouse_Unlock_Keybind = "Y"  -- Tekan tombol ini untuk toggle Mouse Unlock on/off
 }
