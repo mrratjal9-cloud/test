@@ -10,9 +10,10 @@ local CustomConfig = {
 	Fly = true,
 	Fly_Speed = 50,
 	Walk_Speed = 32,
-	Jump_Power = 50,
+	Jump_Power = 100,
 	Basic_Animation = true,
-	Mouse_Unlock = true
+	Mouse_Unlock = true,
+	Mouse_Unlock_Keybind = "Y"  -- Tekan tombol ini untuk toggle Mouse Unlock on/off
 }
 
 local DefaultConfig = {
@@ -25,7 +26,8 @@ local DefaultConfig = {
 	Walk_Speed = 16,
 	Jump_Power = 50,
 	Basic_Animation = false,
-	Mouse_Unlock = false
+	Mouse_Unlock = false,
+	Mouse_Unlock_Keybind = "Y"  -- Tekan tombol ini untuk toggle Mouse Unlock on/off
 }
 
 local Players = game:GetService("Players")
@@ -117,7 +119,7 @@ local function BuildMainGUI(Config)
 	Title.Position = UDim2.new(0, 10, 0, 0)
 	Title.Size = UDim2.new(0, 150, 1, 0)
 	Title.Font = Enum.Font.GothamBold
-	Title.Text = "Basic Script GUI v2"
+	Title.Text = "Basic Script GUI v4"
 	Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	Title.TextSize = 14
 	Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -186,15 +188,24 @@ local function BuildMainGUI(Config)
 		Btn.TextSize = 12
 
 		local state = defaultState
-		Btn.MouseButton1Click:Connect(function()
-			state = not state
+
+		-- Setter publik agar bisa dipanggil dari luar (mis. via keybind)
+		local function setState(newState)
+			state = newState
 			Btn.Text = state and "ON" or "OFF"
 			Btn.BackgroundColor3 = state and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
 			callback(state)
+		end
+
+		Btn.MouseButton1Click:Connect(function()
+			setState(not state)
 		end)
 
 		-- Eksekusi saat inisialisasi agar sesuai dengan config
 		if state then callback(state) end
+
+		-- Return setter supaya caller bisa toggle programatis (untuk keybind)
+		return setState
 	end
 
 	local function createSlider(name, min, max, defaultVal, callback)
@@ -411,6 +422,166 @@ local function BuildMainGUI(Config)
 		updateESP()
 	end)
 
+	-- ==========================================
+	-- BASIC ANIMATION & BASIC MOVE
+	-- Hapus jitter / getaran animasi custom dari game,
+	-- gantikan dengan animasi default Roblox yang halus.
+	-- ==========================================
+	-- NOTE PENTING: jangan pakai "://" literal di source code, karena
+	-- beberapa executor mobile / web-loader meng-strip C-style comment
+	-- (//) dan merusak string. Kita bangun "//" pakai string.char(47,47).
+	local _SL = string.char(47, 47) -- "//"
+	local function _aid(num) return "rbxassetid:" .. _SL .. tostring(num) end
+
+	-- Animation ID default Roblox (R15) - sederhana, halus, tanpa getaran
+	local R15_DEFAULT_ANIMS = {
+		idle    = _aid(507766388),
+		walk    = _aid(507777826),
+		run     = _aid(507767714),
+		jump    = _aid(507765000),
+		fall    = _aid(507767968),
+		climb   = _aid(507765644),
+		sit     = _aid(507768133),
+	}
+
+	local basicAnimEnabled = false
+	local basicAnimLoop
+	local savedAnimateScript
+
+	local function applyBasicAnim(char)
+		if not char then return end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if not hum then return end
+
+		for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
+			pcall(function() t:Stop(0) end)
+		end
+
+		local animate = char:FindFirstChild("Animate")
+		if animate and animate:IsA("LocalScript") then
+			savedAnimateScript = animate
+			animate.Disabled = true
+		end
+
+		hum.CameraOffset = Vector3.new(0, 0, 0)
+		hum.AutoRotate = true
+
+		local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
+
+		local function setAnim(folderName, animId)
+			local folder = char:FindFirstChild(folderName)
+			if not folder then
+				folder = Instance.new("StringValue")
+				folder.Name = folderName
+				folder.Parent = char
+			end
+			for _, c in ipairs(folder:GetChildren()) do c:Destroy() end
+			local anim = Instance.new("Animation")
+			anim.AnimationId = animId
+			anim.Parent = folder
+		end
+
+		setAnim("idle",  R15_DEFAULT_ANIMS.idle)
+		setAnim("walk",  R15_DEFAULT_ANIMS.walk)
+		setAnim("run",   R15_DEFAULT_ANIMS.run)
+		setAnim("jump",  R15_DEFAULT_ANIMS.jump)
+		setAnim("fall",  R15_DEFAULT_ANIMS.fall)
+		setAnim("climb", R15_DEFAULT_ANIMS.climb)
+		setAnim("sit",   R15_DEFAULT_ANIMS.sit)
+
+		pcall(function()
+			local idleAnim = Instance.new("Animation")
+			idleAnim.AnimationId = R15_DEFAULT_ANIMS.idle
+			local track = animator:LoadAnimation(idleAnim)
+			track:Play(0.1)
+		end)
+	end
+
+	local function restoreAnim(char)
+		if not char then return end
+		if savedAnimateScript and savedAnimateScript.Parent then
+			savedAnimateScript.Disabled = false
+		end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
+	end
+
+	createToggle("Basic Animation & Move", Config.Basic_Animation, function(state)
+		basicAnimEnabled = state
+		if state then
+			applyBasicAnim(Lr.Character)
+			if basicAnimLoop then basicAnimLoop:Disconnect() end
+			basicAnimLoop = Lr.CharacterAdded:Connect(function(char)
+				task.wait(0.5)
+				if basicAnimEnabled then applyBasicAnim(char) end
+			end)
+		else
+			if basicAnimLoop then basicAnimLoop:Disconnect() basicAnimLoop = nil end
+			restoreAnim(Lr.Character)
+		end
+	end)
+
+	-- ==========================================
+	-- MOUSE UNLOCK (FIXED v4)
+	-- Bug v3:
+	--  - Kursor mouse kadang tidak muncul padahal toggle ON
+	--    Penyebab: game set Lr:GetMouse().Icon ke gambar invisible
+	--    Fix v4: reset Icon = "" tiap frame
+	--  - Tidak ada keybind (susah toggle saat in-game)
+	--    Fix v4: keybind Y (configurable lewat Config.Mouse_Unlock_Keybind)
+	-- ==========================================
+	local mouseUnlockEnabled = false
+	local mouseConn
+
+	local function applyMouseUnlock(state)
+		mouseUnlockEnabled = state
+		if state then
+			pcall(function() Lr.DevEnableMouseLock = false end)
+			if mouseConn then mouseConn:Disconnect() end
+			mouseConn = RunService.RenderStepped:Connect(function()
+				if not mouseUnlockEnabled then return end
+				-- 1. Behavior: paksa Default (lawan LockCenter / LockCurrentPosition)
+				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+				end
+				-- 2. Visibility: paksa enable
+				if not UserInputService.MouseIconEnabled then
+					UserInputService.MouseIconEnabled = true
+				end
+				-- 3. Icon: reset ke kursor default - banyak game set ke gambar invisible!
+				pcall(function()
+					local mouse = Lr:GetMouse()
+					if mouse and mouse.Icon ~= "" then
+						mouse.Icon = ""
+					end
+				end)
+				-- 4. Anti shift-lock paksa
+				pcall(function()
+					if Lr.DevEnableMouseLock then
+						Lr.DevEnableMouseLock = false
+					end
+				end)
+			end)
+		else
+			if mouseConn then mouseConn:Disconnect() mouseConn = nil end
+		end
+	end
+
+	-- Simpan setter dari createToggle agar keybind bisa sync visual button
+	local setMouseUnlockToggle = createToggle("Mouse Unlock (Anti ShiftLock)", Config.Mouse_Unlock, function(state)
+		applyMouseUnlock(state)
+	end)
+
+	-- KEYBIND untuk toggle Mouse Unlock cepat tanpa buka GUI
+	local mouseKeybindCode = Enum.KeyCode[Config.Mouse_Unlock_Keybind or "Y"] or Enum.KeyCode.Y
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		if input.KeyCode == mouseKeybindCode then
+			-- Pakai setter dari createToggle supaya tombol GUI ikut update
+			setMouseUnlockToggle(not mouseUnlockEnabled)
+		end
+	end)
+
 	createToggle("Low Graphics", Config.Low_Graphics, function(state)
 		if state then
 			pcall(function()
@@ -451,9 +622,44 @@ local function BuildMainGUI(Config)
 		end
 	end)
 
+	-- ==========================================
+	-- FULLBRIGHT (FIXED v3)
+	-- Bug v2: kalau di-OFF, dunia tetap putih karena loop di-disconnect
+	-- tapi properti Lighting tidak dikembalikan ke nilai semula.
+	-- Fix v3: backup nilai asli sebelum diubah, restore saat OFF.
+	-- ==========================================
 	local fbLoop
+	local fbBackup -- nil = belum pernah ON
+
+	local function backupLighting()
+		fbBackup = {
+			GlobalShadows  = Lighting.GlobalShadows,
+			FogEnd         = Lighting.FogEnd,
+			FogStart       = Lighting.FogStart,
+			ClockTime      = Lighting.ClockTime,
+			Brightness     = Lighting.Brightness,
+			Ambient        = Lighting.Ambient,
+			OutdoorAmbient = Lighting.OutdoorAmbient,
+		}
+	end
+
+	local function restoreLighting()
+		if not fbBackup then return end
+		pcall(function() Lighting.GlobalShadows  = fbBackup.GlobalShadows  end)
+		pcall(function() Lighting.FogEnd         = fbBackup.FogEnd         end)
+		pcall(function() Lighting.FogStart       = fbBackup.FogStart       end)
+		pcall(function() Lighting.ClockTime      = fbBackup.ClockTime      end)
+		pcall(function() Lighting.Brightness     = fbBackup.Brightness     end)
+		pcall(function() Lighting.Ambient        = fbBackup.Ambient        end)
+		pcall(function() Lighting.OutdoorAmbient = fbBackup.OutdoorAmbient end)
+	end
+
 	createToggle("Fullbright", Config.Fullbright, function(state)
 		if state then
+			-- backup hanya sekali, biar kalau toggle ON-OFF-ON tetap punya nilai asli
+			if not fbBackup then backupLighting() end
+
+			if fbLoop then fbLoop:Disconnect() end
 			fbLoop = RunService.RenderStepped:Connect(function()
 				Lighting.GlobalShadows = false
 				Lighting.FogEnd = 9e9
@@ -464,19 +670,32 @@ local function BuildMainGUI(Config)
 				Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
 			end)
 		else
-			if fbLoop then fbLoop:Disconnect() end
+			if fbLoop then
+				fbLoop:Disconnect()
+				fbLoop = nil
+			end
+			-- kembalikan ke nilai asli (penting!) supaya dunia tidak putih terus
+			restoreLighting()
 		end
 	end)
 
 	-- ==========================================
-	-- NOCLIP (UPGRADED - lebih kuat menembus tembok)
-	-- Memperbaiki masalah:
-	--  1) Part baru (accessory/tools) yang spawn saat runtime
-	--  2) CollisionGroup khusus yang dipakai game
-	--  3) Anti-cheat client yang re-enable CanCollide
+	-- NOCLIP (UPGRADED v4 - paling kuat tembus tembok)
+	-- Bug v3: kadang ada tembok tertentu yang tidak bisa ditembus.
+	-- Penyebabnya: anti-cheat client re-enable CanCollide DI ANTARA frame
+	-- Stepped, atau pakai constraint physics (joint) yang tidak peduli
+	-- CanCollide. Plus ada properti Massless yang bikin physics resolver
+	-- tetap "memantulkan" character meski CanCollide=false.
+	--
+	-- Fix v4 - triple-loop strategy:
+	--  1) RunService.Stepped     (sebelum physics step)
+	--  2) RunService.Heartbeat   (sesudah physics step) - lawan re-enable
+	--  3) RunService.RenderStepped (sebelum render) - safety net
+	--  + Set Massless=true pada semua part
+	--  + DescendantAdded hook + CharacterAdded re-bind (sama spt v3)
 	-- ==========================================
 	local noclip = Config.Noclip
-	local noclipConn
+	local noclipConnStepped, noclipConnHeartbeat, noclipConnRender
 	local descAddedConn
 	local charAddedConn
 
@@ -485,24 +704,40 @@ local function BuildMainGUI(Config)
 		for _, v in ipairs(char:GetDescendants()) do
 			if v:IsA("BasePart") then
 				v.CanCollide = false
-				-- pindah ke collision group default agar tidak terkena rule custom game
+				v.Massless = true  -- mengurangi efek collision resolver
 				pcall(function() v.CollisionGroup = "Default" end)
 				pcall(function() v.CollisionGroupId = 0 end)
 			end
 		end
 	end
 
+	local function unNoclipChar(char)
+		-- Saat OFF, restore Massless ke false. CanCollide biar Roblox handle.
+		if not char then return end
+		for _, v in ipairs(char:GetDescendants()) do
+			if v:IsA("BasePart") then
+				pcall(function() v.Massless = false end)
+			end
+		end
+	end
+
 	local function bindNoclip()
 		-- Disconnect lama dulu agar tidak dobel
-		if noclipConn then noclipConn:Disconnect() end
+		if noclipConnStepped then noclipConnStepped:Disconnect() end
+		if noclipConnHeartbeat then noclipConnHeartbeat:Disconnect() end
+		if noclipConnRender then noclipConnRender:Disconnect() end
 		if descAddedConn then descAddedConn:Disconnect() end
 		if charAddedConn then charAddedConn:Disconnect() end
 
-		-- Loop tiap physics step (paling cepat sebelum collision dihitung)
-		noclipConn = RunService.Stepped:Connect(function()
-			if noclip then
-				noclipChar(Lr.Character)
-			end
+		-- 3 loop di waktu berbeda dalam 1 frame, agar tidak bisa di-bypass
+		noclipConnStepped = RunService.Stepped:Connect(function()
+			if noclip then noclipChar(Lr.Character) end
+		end)
+		noclipConnHeartbeat = RunService.Heartbeat:Connect(function()
+			if noclip then noclipChar(Lr.Character) end
+		end)
+		noclipConnRender = RunService.RenderStepped:Connect(function()
+			if noclip then noclipChar(Lr.Character) end
 		end)
 
 		-- Tangani part baru yang dimasukkan ke karakter (accessory/tool)
@@ -512,6 +747,7 @@ local function BuildMainGUI(Config)
 				if noclip and d:IsA("BasePart") then
 					task.defer(function()
 						d.CanCollide = false
+						d.Massless = true
 						pcall(function() d.CollisionGroup = "Default" end)
 					end)
 				end
@@ -529,6 +765,12 @@ local function BuildMainGUI(Config)
 		noclip = state
 		if state then
 			bindNoclip()
+		else
+			-- Disconnect semua loop dan kembalikan Massless
+			if noclipConnStepped then noclipConnStepped:Disconnect() noclipConnStepped = nil end
+			if noclipConnHeartbeat then noclipConnHeartbeat:Disconnect() noclipConnHeartbeat = nil end
+			if noclipConnRender then noclipConnRender:Disconnect() noclipConnRender = nil end
+			unNoclipChar(Lr.Character)
 		end
 	end)
 
@@ -598,149 +840,6 @@ local function BuildMainGUI(Config)
 			local hum = Lr.Character:FindFirstChildOfClass("Humanoid")
 			hum.UseJumpPower = true
 			hum.JumpPower = val
-		end
-	end)
-
-	-- ==========================================
-	-- BASIC ANIMATION & BASIC MOVE
-	-- Hapus jitter / getaran animasi custom dari game,
-	-- gantikan dengan animasi default Roblox yang halus.
-	-- ==========================================
-	-- NOTE PENTING: jangan pakai "://" literal di source code, karena
-	-- beberapa executor mobile / web-loader meng-strip C-style comment
-	-- (//) dan merusak string. Kita bangun "//" pakai string.char(47,47).
-	local _SL = string.char(47, 47) -- "//"
-	local function _aid(num) return "rbxassetid:" .. _SL .. tostring(num) end
-
-	-- Animation ID default Roblox (R15) - sederhana, halus, tanpa getaran
-	local R15_DEFAULT_ANIMS = {
-		idle    = _aid(507766388),
-		walk    = _aid(507777826),
-		run     = _aid(507767714),
-		jump    = _aid(507765000),
-		fall    = _aid(507767968),
-		climb   = _aid(507765644),
-		sit     = _aid(507768133),
-	}
-
-	local basicAnimEnabled = false
-	local basicAnimLoop
-	local savedAnimateScript -- backup script Animate yang aslinya
-
-	local function applyBasicAnim(char)
-		if not char then return end
-		local hum = char:FindFirstChildOfClass("Humanoid")
-		if not hum then return end
-
-		-- Hentikan dulu semua track yang berjalan
-		for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
-			pcall(function() t:Stop(0) end)
-		end
-
-		-- Disable script Animate bawaan game (yang biasanya bikin getaran)
-		local animate = char:FindFirstChild("Animate")
-		if animate and animate:IsA("LocalScript") then
-			savedAnimateScript = animate
-			animate.Disabled = true
-		end
-
-		-- Reset CameraOffset agar kamera tidak bergoyang/jitter
-		hum.CameraOffset = Vector3.new(0, 0, 0)
-		hum.AutoRotate = true
-
-		-- Pasang Animator yang clean
-		local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
-
-		-- Buat StringValue untuk override animation IDs (cara yang dipakai R15 default)
-		local function setAnim(folderName, animId)
-			local folder = char:FindFirstChild(folderName)
-			if not folder then
-				folder = Instance.new("StringValue")
-				folder.Name = folderName
-				folder.Parent = char
-			end
-			-- Hapus semua child Animation lama
-			for _, c in ipairs(folder:GetChildren()) do c:Destroy() end
-			local anim = Instance.new("Animation")
-			anim.AnimationId = animId
-			anim.Parent = folder
-		end
-
-		setAnim("idle",  R15_DEFAULT_ANIMS.idle)
-		setAnim("walk",  R15_DEFAULT_ANIMS.walk)
-		setAnim("run",   R15_DEFAULT_ANIMS.run)
-		setAnim("jump",  R15_DEFAULT_ANIMS.jump)
-		setAnim("fall",  R15_DEFAULT_ANIMS.fall)
-		setAnim("climb", R15_DEFAULT_ANIMS.climb)
-		setAnim("sit",   R15_DEFAULT_ANIMS.sit)
-
-		-- Mainkan idle dulu agar transisi halus
-		pcall(function()
-			local idleAnim = Instance.new("Animation")
-			idleAnim.AnimationId = R15_DEFAULT_ANIMS.idle
-			local track = animator:LoadAnimation(idleAnim)
-			track:Play(0.1)
-		end)
-	end
-
-	local function restoreAnim(char)
-		if not char then return end
-		if savedAnimateScript and savedAnimateScript.Parent then
-			savedAnimateScript.Disabled = false
-		end
-		local hum = char:FindFirstChildOfClass("Humanoid")
-		if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
-	end
-
-	createToggle("Basic Animation & Move", Config.Basic_Animation, function(state)
-		basicAnimEnabled = state
-		if state then
-			applyBasicAnim(Lr.Character)
-			-- pastikan setiap respawn animasi tetap di-apply
-			if basicAnimLoop then basicAnimLoop:Disconnect() end
-			basicAnimLoop = Lr.CharacterAdded:Connect(function(char)
-				task.wait(0.5) -- tunggu game pasang script Animate-nya
-				if basicAnimEnabled then applyBasicAnim(char) end
-			end)
-		else
-			if basicAnimLoop then basicAnimLoop:Disconnect() basicAnimLoop = nil end
-			restoreAnim(Lr.Character)
-		end
-	end)
-
-	-- ==========================================
-	-- MOUSE UNLOCK (anti shift-lock paksa dari developer)
-	-- Force MouseBehavior = Default & MouseIconEnabled = true
-	-- Juga override DevEnableMouseLock setiap frame
-	-- ==========================================
-	local mouseUnlockEnabled = false
-	local mouseConn
-
-	createToggle("Mouse Unlock (Anti ShiftLock)", Config.Mouse_Unlock, function(state)
-		mouseUnlockEnabled = state
-		if state then
-			-- matikan shift-lock dari level player
-			pcall(function() Lr.DevEnableMouseLock = false end)
-
-			if mouseConn then mouseConn:Disconnect() end
-			mouseConn = RunService.RenderStepped:Connect(function()
-				if not mouseUnlockEnabled then return end
-				-- Paksa mouse bebas tiap frame (override script developer)
-				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
-					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-				end
-				if not UserInputService.MouseIconEnabled then
-					UserInputService.MouseIconEnabled = true
-				end
-				-- Override shift-lock di kamera kalau ada
-				pcall(function()
-					if Lr.DevEnableMouseLock then
-						Lr.DevEnableMouseLock = false
-					end
-				end)
-			end)
-		else
-			if mouseConn then mouseConn:Disconnect() mouseConn = nil end
 		end
 	end)
 end
