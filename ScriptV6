@@ -15,7 +15,7 @@ local CustomConfig = {
 	Mouse_Unlock = true,
 	Mouse_Unlock_Keybind = "Y",  -- Tekan tombol ini untuk toggle Mouse Unlock on/off
 	Btools = false,
-	Btools_Mode = "backpack"  -- "backpack" = HopperBin di Backpack, "gui" = tombol di GUI, "both" = dua-duanya
+	Btools_Mode = "both"  -- "backpack" = HopperBin di Backpack, "gui" = tombol di GUI, "both" = dua-duanya
 }
 
 local DefaultConfig = {
