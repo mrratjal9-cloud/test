@@ -117,7 +117,7 @@ local function BuildMainGUI(Config)
 	Title.Position = UDim2.new(0, 10, 0, 0)
 	Title.Size = UDim2.new(0, 150, 1, 0)
 	Title.Font = Enum.Font.GothamBold
-	Title.Text = "Basic Script GUI"
+	Title.Text = "Basic Script GUI v2"
 	Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	Title.TextSize = 14
 	Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -192,7 +192,7 @@ local function BuildMainGUI(Config)
 			Btn.BackgroundColor3 = state and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
 			callback(state)
 		end)
-		
+
 		-- Eksekusi saat inisialisasi agar sesuai dengan config
 		if state then callback(state) end
 	end
@@ -243,7 +243,7 @@ local function BuildMainGUI(Config)
 				callback(value)
 			end
 		end)
-		
+
 		-- Eksekusi saat inisialisasi agar sesuai dengan config
 		callback(defaultVal)
 	end
@@ -316,7 +316,7 @@ local function BuildMainGUI(Config)
 	DropdownBtn.MouseButton1Click:Connect(function()
 		DropdownList.Visible = not DropdownList.Visible
 		DropdownBtn.Text = DropdownList.Visible and "^" or "v"
-		
+
 		if DropdownList.Visible then
 			for _, child in pairs(DropdownList:GetChildren()) do
 				if child:IsA("TextButton") then child:Destroy() end
@@ -332,7 +332,7 @@ local function BuildMainGUI(Config)
 					pBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 					pBtn.TextSize = 13
 					pBtn.TextXAlignment = Enum.TextXAlignment.Left
-					
+
 					pBtn.MouseButton1Click:Connect(function()
 						TPInput.Text = p.Name
 						DropdownList.Visible = false
@@ -361,7 +361,7 @@ local function BuildMainGUI(Config)
 			if p ~= Lr and p.Character then
 				local hl = p.Character:FindFirstChild("BasicESP")
 				local bgui = p.Character:FindFirstChild("BasicESP_Name")
-				
+
 				if espEnabled then
 					if not hl then
 						hl = Instance.new("Highlight")
@@ -378,7 +378,7 @@ local function BuildMainGUI(Config)
 						bgui.Size = UDim2.new(0, 150, 0, 40)
 						bgui.StudsOffset = Vector3.new(0, 2.5, 0)
 						bgui.AlwaysOnTop = true
-						
+
 						local txt = Instance.new("TextLabel")
 						txt.Parent = bgui
 						txt.BackgroundTransparency = 1
@@ -388,7 +388,7 @@ local function BuildMainGUI(Config)
 						txt.TextStrokeTransparency = 0.2
 						txt.Font = Enum.Font.GothamBold
 						txt.TextSize = 14
-						
+
 						bgui.Parent = p.Character
 					end
 				else
@@ -443,7 +443,7 @@ local function BuildMainGUI(Config)
 			for _, e in ipairs(Lighting:GetChildren()) do
 				pcall(function()
 					if e:IsA("PostEffect") or e:IsA("Atmosphere") or e:IsA("Sky") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") then
-						if e:IsA("Sky") or e:IsA("Atmosphere") then e:Destroy() 
+						if e:IsA("Sky") or e:IsA("Atmosphere") then e:Destroy()
 						else e.Enabled = false end
 					end
 				end)
@@ -545,20 +545,20 @@ local function BuildMainGUI(Config)
 		if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 		local hrp = char.HumanoidRootPart
 		local humanoid = char:FindFirstChildOfClass("Humanoid")
-		
+
 		if flying then
 			local camera = workspace.CurrentCamera
 			bg = Instance.new("BodyGyro", hrp)
 			bg.P = 9e4
 			bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
 			bg.cframe = hrp.CFrame
-			
+
 			bv = Instance.new("BodyVelocity", hrp)
 			bv.velocity = Vector3.new(0, 0, 0)
 			bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
-			
+
 			if humanoid then humanoid.PlatformStand = true end
-			
+
 			task.spawn(function()
 				while flying and char and char:FindFirstChild("HumanoidRootPart") do
 					local ctrl = {f = 0, b = 0, l = 0, r = 0}
@@ -566,7 +566,7 @@ local function BuildMainGUI(Config)
 					if UserInputService:IsKeyDown(Enum.KeyCode.S) then ctrl.b = -1 end
 					if UserInputService:IsKeyDown(Enum.KeyCode.A) then ctrl.l = -1 end
 					if UserInputService:IsKeyDown(Enum.KeyCode.D) then ctrl.r = 1 end
-					
+
 					local camCF = camera.CFrame
 					bv.Velocity = ((camCF.LookVector * (ctrl.f + ctrl.b)) + (camCF.RightVector * (ctrl.l + ctrl.r))) * flySpeed
 					bg.CFrame = camCF
@@ -596,7 +596,7 @@ local function BuildMainGUI(Config)
 	createSlider("Jump Power", 50, 500, Config.Jump_Power, function(val)
 		if Lr.Character and Lr.Character:FindFirstChildOfClass("Humanoid") then
 			local hum = Lr.Character:FindFirstChildOfClass("Humanoid")
-			hum.UseJumpPower = true 
+			hum.UseJumpPower = true
 			hum.JumpPower = val
 		end
 	end)
@@ -606,20 +606,26 @@ local function BuildMainGUI(Config)
 	-- Hapus jitter / getaran animasi custom dari game,
 	-- gantikan dengan animasi default Roblox yang halus.
 	-- ==========================================
-	local basicAnimEnabled = false
-	local basicAnimLoop
-	local savedAnimateScript -- backup script Animate yang aslinya
+	-- NOTE PENTING: jangan pakai "://" literal di source code, karena
+	-- beberapa executor mobile / web-loader meng-strip C-style comment
+	-- (//) dan merusak string. Kita bangun "//" pakai string.char(47,47).
+	local _SL = string.char(47, 47) -- "//"
+	local function _aid(num) return "rbxassetid:" .. _SL .. tostring(num) end
 
 	-- Animation ID default Roblox (R15) - sederhana, halus, tanpa getaran
 	local R15_DEFAULT_ANIMS = {
-		idle    = "rbxassetid://507766388",
-		walk    = "rbxassetid://507777826",
-		run     = "rbxassetid://507767714",
-		jump    = "rbxassetid://507765000",
-		fall    = "rbxassetid://507767968",
-		climb   = "rbxassetid://507765644",
-		sit     = "rbxassetid://507768133",
+		idle    = _aid(507766388),
+		walk    = _aid(507777826),
+		run     = _aid(507767714),
+		jump    = _aid(507765000),
+		fall    = _aid(507767968),
+		climb   = _aid(507765644),
+		sit     = _aid(507768133),
 	}
+
+	local basicAnimEnabled = false
+	local basicAnimLoop
+	local savedAnimateScript -- backup script Animate yang aslinya
 
 	local function applyBasicAnim(char)
 		if not char then return end
@@ -737,10 +743,6 @@ local function BuildMainGUI(Config)
 			if mouseConn then mouseConn:Disconnect() mouseConn = nil end
 		end
 	end)
-
-	if mouseUnlockEnabled then
-		-- jalanin sekali kalau ON di config
-	end
 end
 
 -- ==========================================
