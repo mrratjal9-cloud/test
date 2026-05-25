@@ -611,14 +611,20 @@ local function BuildMainGUI(Config)
 	local savedAnimateScript -- backup script Animate yang aslinya
 
 	-- Animation ID default Roblox (R15) - sederhana, halus, tanpa getaran
+	-- NOTE: jangan pakai "://" literal di source code, karena beberapa
+	-- executor mobile/web-loader meng-strip C-style comment "//" dan
+	-- merusak string. Kita bangun pakai string.char(47,47) = "//".
+	local _SL = string.char(47, 47) -- "//"
+	local function _aid(num) return "rbxassetid:" .. _SL .. tostring(num) end
+
 	local R15_DEFAULT_ANIMS = {
-		idle    = "rbxassetid://507766388",
-		walk    = "rbxassetid://507777826",
-		run     = "rbxassetid://507767714",
-		jump    = "rbxassetid://507765000",
-		fall    = "rbxassetid://507767968",
-		climb   = "rbxassetid://507765644",
-		sit     = "rbxassetid://507768133",
+		idle    = _aid(507766388),
+		walk    = _aid(507777826),
+		run     = _aid(507767714),
+		jump    = _aid(507765000),
+		fall    = _aid(507767968),
+		climb   = _aid(507765644),
+		sit     = _aid(507768133),
 	}
 
 	local function applyBasicAnim(char)
